@@ -1,0 +1,93 @@
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>施工相片回報</title>
+  <style>
+    body { font-family: sans-serif; padding: 1em; }
+    input, textarea, button { width: 100%; margin: 10px 0; padding: 8px; font-size: 1em; }
+    .photo-preview img { width: 100px; margin: 5px; }
+  </style>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/11.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.7.1/firebase-storage-compat.js"></script>
+</head>
+<body>
+
+  <h2>施工相片回報表單</h2>
+
+  <input type="text" id="projectName" placeholder="專案名稱（例：畜牧01）" />
+  <input type="text" id="location" placeholder="施工地點" />
+  <textarea id="description" rows="3" placeholder="施工說明"></textarea>
+  <input type="text" id="taskItem" placeholder="施工項目（會勘 / 維修等）" />
+  <input type="file" id="photos" accept="image/*" multiple />
+  <div class="photo-preview" id="preview"></div>
+  <input type="text" id="worker" placeholder="施工人員姓名" />
+  <button onclick="submitForm()">送出</button>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCSKkrD3Rlexgf2nt2nIGGrezctesfpep0",
+      authDomain: "kentwork-a1f77.firebaseapp.com",
+      projectId: "kentwork-a1f77",
+      storageBucket: "kentwork-a1f77.appspot.com",
+      messagingSenderId: "191056179160",
+      appId: "1:191056179160:web:1a53385eede40f08c98cad",
+      measurementId: "G-KGVDZWCQE3"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    document.getElementById('photos').addEventListener('change', function () {
+      const preview = document.getElementById('preview');
+      preview.innerHTML = '';
+      Array.from(this.files).slice(0, 6).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          preview.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    async function submitForm() {
+      const projectName = document.getElementById('projectName').value;
+      const location = document.getElementById('location').value;
+      const description = document.getElementById('description').value;
+      const taskItem = document.getElementById('taskItem').value;
+      const worker = document.getElementById('worker').value;
+      const photos = document.getElementById('photos').files;
+
+      if (!projectName || !location || !worker) {
+        alert("請填寫所有必填欄位");
+        return;
+      }
+
+      const photoURLs = [];
+      for (let i = 0; i < Math.min(photos.length, 6); i++) {
+        const photo = photos[i];
+        const ref = storage.ref().child(`photos/${Date.now()}_${photo.name}`);
+        await ref.put(photo);
+        const url = await ref.getDownloadURL();
+        photoURLs.push(url);
+      }
+
+      await db.collection("reports").add({
+        projectName, location, description, taskItem,
+        worker, time: new Date(), photoURLs
+      });
+
+      alert("回報完成！");
+      window.location.reload();
+    }
+  </script>
+
+</body>
+</html>
